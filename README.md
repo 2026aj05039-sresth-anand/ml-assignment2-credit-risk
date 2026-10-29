@@ -21,7 +21,7 @@ Commercial banks and financial institutions face substantial capital exposure wh
 ## c. GitHub Repository Link & Live Streamlit App Link
 
 - **GitHub Repository Link:** [https://github.com/2026aj05039-sresth-anand/ml-assignment2-credit-risk](https://github.com/2026aj05039-sresth-anand/ml-assignment2-credit-risk)
-- **Live Streamlit App Link (Streamlit Community Cloud):** [https://2026aj05039-ml-assignment2.streamlit.app/](https://2026aj05039-ml-assignment2.streamlit.app/)
+- **Live Streamlit App Link (Streamlit Community Cloud):** [https://ml-assignment2-credit-risk-h3ftsonvape4auxgnvm2xp.streamlit.app/](https://ml-assignment2-credit-risk-h3ftsonvape4auxgnvm2xp.streamlit.app/)
 
 ### Repository Structure (Step 3 Compliance)
 
