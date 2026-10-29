@@ -1,0 +1,95 @@
+{
+  "Logistic Regression": {
+    "Accuracy": 0.78,
+    "AUC": 0.7743,
+    "Precision": 0.7353,
+    "Recall": 0.4167,
+    "F1": 0.5319,
+    "MCC": 0.4299,
+    "TP": 25,
+    "TN": 131,
+    "FP": 9,
+    "FN": 35,
+    "hyperparameters": {
+      "C": 0.5,
+      "solver": "L-BFGS-B",
+      "max_iter": 1000,
+      "random_state": 5039
+    },
+    "filename": "logistic_regression.pkl"
+  },
+  "Decision Tree": {
+    "Accuracy": 0.7,
+    "AUC": 0.7005,
+    "Precision": 0.5,
+    "Recall": 0.4167,
+    "F1": 0.4545,
+    "MCC": 0.252,
+    "TP": 25,
+    "TN": 115,
+    "FP": 25,
+    "FN": 35,
+    "hyperparameters": {
+      "criterion": "gini",
+      "max_depth": 10,
+      "min_samples_leaf": 8,
+      "random_state": 5039
+    },
+    "filename": "decision_tree.pkl"
+  },
+  "KNN": {
+    "Accuracy": 0.74,
+    "AUC": 0.7425,
+    "Precision": 0.6111,
+    "Recall": 0.3667,
+    "F1": 0.4583,
+    "MCC": 0.3181,
+    "TP": 22,
+    "TN": 126,
+    "FP": 14,
+    "FN": 38,
+    "hyperparameters": {
+      "n_neighbors": 5,
+      "weights": "distance",
+      "metric": "euclidean"
+    },
+    "filename": "knn.pkl"
+  },
+  "Naive Bayes": {
+    "Accuracy": 0.765,
+    "AUC": 0.7985,
+    "Precision": 0.5942,
+    "Recall": 0.6833,
+    "F1": 0.6357,
+    "MCC": 0.4659,
+    "TP": 41,
+    "TN": 112,
+    "FP": 28,
+    "FN": 19,
+    "hyperparameters": {
+      "variant": "GaussianNB",
+      "var_smoothing": 0.01
+    },
+    "filename": "naive_bayes.pkl"
+  },
+  "Support Vector Machine": {
+    "Accuracy": 0.78,
+    "AUC": 0.7779,
+    "Precision": 0.75,
+    "Recall": 0.4,
+    "F1": 0.5217,
+    "MCC": 0.4286,
+    "TP": 24,
+    "TN": 132,
+    "FP": 8,
+    "FN": 36,
+    "hyperparameters": {
+      "C": 0.5,
+      "kernel": "rbf",
+      "gamma": 0.03,
+      "probability": true,
+      "random_state": 5039
+    },
+    "filename": "svm.pkl"
+  }
+}
