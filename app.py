@@ -1,8 +1,8 @@
 # ==============================================================================
-# M.Tech (AIML) - Machine Learning Assignment 2
-# Interactive Credit Risk Classification & Model Evaluation Suite
-# Student Name: Sresth Anand | BITS ID: 2026AJ05039 | Seed: 5039
-# Dataset: Statlog (German Credit Data) - UCI Machine Learning Repository
+# BITS Pilani (WILP) - M.Tech (AIML) Machine Learning Assignment 2
+# Custom Credit-Risk Analytics & Multi-Model Evaluation Workbench
+# Author: Sresth Anand | BITS ID: 2026AJ05039 | Random Seed: 5039
+# Dataset: UCI Statlog German Credit Data (1,000 instances, 20 features)
 # ==============================================================================
 
 import os
@@ -16,16 +16,40 @@ from scipy.spatial.distance import cdist
 from scipy.special import expit
 
 st.set_page_config(
-    page_title="Credit Risk ML Evaluation Suite | 2026AJ05039",
-    page_icon="📊",
+    page_title="Sresth Anand (2026AJ05039) | Credit Risk ML Workbench",
+    page_icon="chart_with_upwards_trend",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("📊 Credit Risk Classification — 5-Model Evaluation Suite")
-st.caption("Student: Sresth Anand | BITS ID: 2026AJ05039 | M.Tech (AIML) Machine Learning Assignment 2 | Dataset: UCI Statlog German Credit (1,000 instances, 20 features)")
+# Custom UI Styling (Section 5 UI-Level Originality & Customization)
+st.markdown("""
+<style>
+    .sresth-banner {
+        background: linear-gradient(135deg, #0f2c59 0%, #117864 100%);
+        color: #ffffff;
+        padding: 1.15rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        box-shadow: 0 3px 10px rgba(15, 44, 89, 0.16);
+    }
+    .sresth-banner h2 { margin: 0; font-size: 1.5rem; font-weight: 700; color: #ffffff; }
+    .sresth-banner p { margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.92; }
+    div[data-testid="stMetric"] {
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-left: 4px solid #0f2c59;
+        padding: 0.65rem 0.85rem;
+        border-radius: 8px;
+    }
+</style>
+<div class="sresth-banner">
+    <h2>German Credit Risk Classification -- 5-Model Evaluation Workbench</h2>
+    <p>Student: <b>Sresth Anand</b> | BITS ID: <b>2026AJ05039</b> | Seed: <b>5039</b> | Dataset: UCI Statlog German Credit (1,000 instances, 20 features)</p>
+</div>
+""", unsafe_allow_html=True)
 
-MODEL_REGISTRY = {
+SRESTH_MODEL_ARTIFACTS = {
     "Logistic Regression": "model/logistic_regression.pkl",
     "Decision Tree": "model/decision_tree.pkl",
     "KNN": "model/knn.pkl",
@@ -33,7 +57,7 @@ MODEL_REGISTRY = {
     "Support Vector Machine": "model/svm.pkl",
 }
 
-REQUIRED_FEATURES = [
+CREDIT_INPUT_ATTRIBUTES = [
     "checking_balance", "months_loan_duration", "credit_history", "purpose",
     "amount", "savings_balance", "employment_length", "installment_rate",
     "personal_status", "other_debtors", "residence_history", "property",
@@ -41,70 +65,83 @@ REQUIRED_FEATURES = [
     "dependents", "telephone", "foreign_worker", "job"
 ]
 
-def transform_features(df_X, prep):
-    cols_out = []
-    for col in prep["num_cols"]:
-        vals = df_X[col].astype(float).values
-        cols_out.append(((vals - prep["num_mean"][col]) / prep["num_std"][col]).reshape(-1, 1))
-    for col in prep["cat_cols"]:
-        s_vals = df_X[col].astype(str).values
-        for c in prep["cat_categories"][col]:
-            cols_out.append((s_vals == c).astype(float).reshape(-1, 1))
-    return np.hstack(cols_out)
+def encode_credit_dataframe(df_features, prep_artifact):
+    encoded_blocks = []
+    for col in prep_artifact["num_cols"]:
+        arr_v = df_features[col].astype(float).values
+        norm_v = (arr_v - prep_artifact["num_mean"][col]) / prep_artifact["num_std"][col]
+        encoded_blocks.append(norm_v.reshape(-1, 1))
+    for col in prep_artifact["cat_cols"]:
+        str_v = df_features[col].astype(str).values
+        for cat_lvl in prep_artifact["cat_categories"][col]:
+            encoded_blocks.append((str_v == cat_lvl).astype(float).reshape(-1, 1))
+    return np.hstack(encoded_blocks)
 
-def _predict_tree_one(x_row, node):
-    while not node["is_leaf"]:
-        node = node["left"] if x_row[node["feat"]] <= node["thr"] else node["right"]
-    return node["prob1"]
+def _traverse_cart_node(row_vec, tree_node):
+    while not tree_node["is_leaf"]:
+        branch = "left" if row_vec[tree_node["feat"]] <= tree_node["thr"] else "right"
+        tree_node = tree_node[branch]
+    return tree_node["prob1"]
 
-def run_saved_model_inference(bundle, df_features):
-    """Evaluate pre-trained model artifact on uploaded test CSV without retraining."""
-    if hasattr(bundle, "predict") and hasattr(bundle, "predict_proba"):
-        return np.asarray(bundle.predict(df_features), dtype=int), np.asarray(bundle.predict_proba(df_features)[:, 1], dtype=float)
+def evaluate_saved_credit_model(artifact_bundle, df_features):
+    """Run inference using serialized model/*.pkl without retraining on uploaded test data."""
+    if hasattr(artifact_bundle, "predict") and hasattr(artifact_bundle, "predict_proba"):
+        preds = np.asarray(artifact_bundle.predict(df_features), dtype=int)
+        probs = np.asarray(artifact_bundle.predict_proba(df_features)[:, 1], dtype=float)
+        return preds, probs
 
-    X = transform_features(df_features, bundle["preprocessor"])
-    mtype = bundle["model_type"]
+    X_enc = encode_credit_dataframe(df_features, artifact_bundle["preprocessor"])
+    arch = artifact_bundle["model_type"]
 
-    if mtype == "logistic_regression":
-        p1 = expit(X @ bundle["coef"] + bundle["intercept"])
-    elif mtype == "decision_tree":
-        p1 = np.array([_predict_tree_one(r, bundle["tree"]) for r in X], dtype=float)
-    elif mtype == "knn":
-        dists = cdist(X, bundle["X_train"], metric="euclidean")
-        idx = np.argsort(dists, axis=1)[:, :int(bundle["n_neighbors"])]
-        w = 1.0 / (np.take_along_axis(dists, idx, axis=1) + 1e-8)
-        p1 = np.sum(w * bundle["y_train"][idx], axis=1) / np.sum(w, axis=1)
-    elif mtype == "gaussian_nb":
-        priors, theta, var = bundle["priors"], bundle["theta"], bundle["var"]
-        lps = [np.log(priors[c]) - 0.5 * np.sum(np.log(2.0 * np.pi * var[c]) + ((X - theta[c]) ** 2) / var[c], axis=1) for c in (0, 1)]
-        lp_mat = np.column_stack(lps)
-        lp_mat -= np.max(lp_mat, axis=1, keepdims=True)
-        probs = np.exp(lp_mat) / np.sum(np.exp(lp_mat), axis=1, keepdims=True)
-        p1 = probs[:, 1]
-    elif mtype == "svm_rbf":
-        K_test = np.exp(-bundle["gamma_val"] * cdist(X, bundle["X_sv"], metric="sqeuclidean"))
-        scores = K_test @ bundle["alpha"] + bundle["b"]
-        p1 = expit(bundle["platt_a"] * scores + bundle["platt_b"])
-        return (scores >= 0.0).astype(int), p1
+    if arch == "logistic_regression":
+        prob_pos = expit(X_enc @ artifact_bundle["coef"] + artifact_bundle["intercept"])
+    elif arch == "decision_tree":
+        prob_pos = np.array([_traverse_cart_node(r, artifact_bundle["tree"]) for r in X_enc], dtype=float)
+    elif arch == "knn":
+        d_mat = cdist(X_enc, artifact_bundle["X_train"], metric="euclidean")
+        nn_idx = np.argsort(d_mat, axis=1)[:, :int(artifact_bundle["n_neighbors"])]
+        inv_w = 1.0 / (np.take_along_axis(d_mat, nn_idx, axis=1) + 1e-8)
+        prob_pos = np.sum(inv_w * artifact_bundle["y_train"][nn_idx], axis=1) / np.sum(inv_w, axis=1)
+    elif arch == "gaussian_nb":
+        priors, mu, sigma2 = artifact_bundle["priors"], artifact_bundle["theta"], artifact_bundle["var"]
+        log_lik = [
+            np.log(priors[c]) - 0.5 * np.sum(np.log(2.0 * np.pi * sigma2[c]) + ((X_enc - mu[c]) ** 2) / sigma2[c], axis=1)
+            for c in (0, 1)
+        ]
+        ll_mat = np.column_stack(log_lik)
+        ll_mat -= np.max(ll_mat, axis=1, keepdims=True)
+        prob_pos = (np.exp(ll_mat) / np.sum(np.exp(ll_mat), axis=1, keepdims=True))[:, 1]
+    elif arch == "svm_rbf":
+        rbf_k = np.exp(-artifact_bundle["gamma_val"] * cdist(X_enc, artifact_bundle["X_sv"], metric="sqeuclidean"))
+        margin = rbf_k @ artifact_bundle["alpha"] + artifact_bundle["b"]
+        prob_pos = expit(artifact_bundle["platt_a"] * margin + artifact_bundle["platt_b"])
+        return (margin >= 0.0).astype(int), prob_pos
     else:
-        raise ValueError(f"Unsupported model_type: {mtype}")
-    return (p1 >= 0.5).astype(int), p1
+        raise ValueError(f"Unrecognized model architecture: {arch}")
 
-def compute_all_metrics(y_true, y_pred, y_prob):
-    y_t, y_p, y_s = np.asarray(y_true, dtype=int), np.asarray(y_pred, dtype=int), np.asarray(y_prob, dtype=float)
-    tp = int(np.sum((y_t == 1) & (y_p == 1)))
-    tn = int(np.sum((y_t == 0) & (y_p == 0)))
-    fp = int(np.sum((y_t == 0) & (y_p == 1)))
-    fn = int(np.sum((y_t == 1) & (y_p == 0)))
-    acc = (tp + tn) / max(len(y_t), 1)
+    return (prob_pos >= 0.5).astype(int), prob_pos
+
+def calculate_six_rubric_metrics(y_true, y_pred, y_prob):
+    yt = np.asarray(y_true, dtype=int)
+    yp = np.asarray(y_pred, dtype=int)
+    ys = np.asarray(y_prob, dtype=float)
+
+    tp = int(np.sum((yt == 1) & (yp == 1)))
+    tn = int(np.sum((yt == 0) & (yp == 0)))
+    fp = int(np.sum((yt == 0) & (yp == 1)))
+    fn = int(np.sum((yt == 1) & (yp == 0)))
+
+    acc = (tp + tn) / max(len(yt), 1)
     prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     f1 = (2.0 * prec * rec) / (prec + rec) if (prec + rec) > 0 else 0.0
-    denom = np.sqrt(float((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)))
-    mcc = ((tp * tn) - (fp * fn)) / denom if denom > 0 else 0.0
-    pos_s, neg_s = y_s[y_t == 1], y_s[y_t == 0]
-    diff = pos_s[:, None] - neg_s[None, :]
-    auc = float(np.sum(diff > 0) + 0.5 * np.sum(diff == 0)) / max(float(len(pos_s) * len(neg_s)), 1.0)
+    mcc_den = np.sqrt(float((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)))
+    mcc = ((tp * tn) - (fp * fn)) / mcc_den if mcc_den > 0 else 0.0
+
+    s_pos, s_neg = ys[yt == 1], ys[yt == 0]
+    pw_diff = s_pos[:, None] - s_neg[None, :]
+    auc = float(np.sum(pw_diff > 0) + 0.5 * np.sum(pw_diff == 0)) / max(float(len(s_pos) * len(s_neg)), 1.0)
+
     return {
         "Accuracy": round(float(acc), 4), "AUC": round(float(auc), 4),
         "Precision": round(float(prec), 4), "Recall": round(float(rec), 4),
@@ -112,94 +149,104 @@ def compute_all_metrics(y_true, y_pred, y_prob):
         "TP": tp, "TN": tn, "FP": fp, "FN": fn,
     }
 
-def build_classification_report_df(y_true, y_pred):
-    y_t, y_p = np.asarray(y_true, dtype=int), np.asarray(y_pred, dtype=int)
-    rows, n_tot = [], max(len(y_t), 1)
-    for cls, name in [(0, "Class 0 (Good Credit)"), (1, "Class 1 (Default Risk)")]:
-        tp = int(np.sum((y_t == cls) & (y_p == cls)))
-        fp = int(np.sum((y_t != cls) & (y_p == cls)))
-        fn = int(np.sum((y_t == cls) & (y_p != cls)))
-        sup = int(np.sum(y_t == cls))
+def generate_class_report_table(y_true, y_pred):
+    yt, yp = np.asarray(y_true, dtype=int), np.asarray(y_pred, dtype=int)
+    report_rows, total_n = [], max(len(yt), 1)
+    for cls_id, cls_label in [(0, "Class 0 (Good Credit)"), (1, "Class 1 (Default Risk)")]:
+        tp = int(np.sum((yt == cls_id) & (yp == cls_id)))
+        fp = int(np.sum((yt != cls_id) & (yp == cls_id)))
+        fn = int(np.sum((yt == cls_id) & (yp != cls_id)))
+        sup = int(np.sum(yt == cls_id))
         p = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         r = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f = (2 * p * r) / (p + r) if (p + r) > 0 else 0.0
-        rows.append({"Class": name, "Precision": round(p, 4), "Recall": round(r, 4), "F1-Score": round(f, 4), "Support": sup})
-    rows.append({
-        "Class": "Macro Avg",
-        "Precision": round(float(np.mean([r["Precision"] for r in rows[:2]])), 4),
-        "Recall": round(float(np.mean([r["Recall"] for r in rows[:2]])), 4),
-        "F1-Score": round(float(np.mean([r["F1-Score"] for r in rows[:2]])), 4),
-        "Support": len(y_t),
+        f = (2.0 * p * r) / (p + r) if (p + r) > 0 else 0.0
+        report_rows.append({"Class": cls_label, "Precision": round(p, 4), "Recall": round(r, 4), "F1-Score": round(f, 4), "Support": sup})
+    report_rows.append({
+        "Class": "Macro Average",
+        "Precision": round(float(np.mean([r["Precision"] for r in report_rows[:2]])), 4),
+        "Recall": round(float(np.mean([r["Recall"] for r in report_rows[:2]])), 4),
+        "F1-Score": round(float(np.mean([r["F1-Score"] for r in report_rows[:2]])), 4),
+        "Support": len(yt),
     })
-    rows.append({
-        "Class": "Weighted Avg",
-        "Precision": round(float(sum(r["Precision"] * r["Support"] for r in rows[:2]) / n_tot), 4),
-        "Recall": round(float(sum(r["Recall"] * r["Support"] for r in rows[:2]) / n_tot), 4),
-        "F1-Score": round(float(sum(r["F1-Score"] * r["Support"] for r in rows[:2]) / n_tot), 4),
-        "Support": len(y_t),
+    report_rows.append({
+        "Class": "Weighted Average",
+        "Precision": round(float(sum(r["Precision"] * r["Support"] for r in report_rows[:2]) / total_n), 4),
+        "Recall": round(float(sum(r["Recall"] * r["Support"] for r in report_rows[:2]) / total_n), 4),
+        "F1-Score": round(float(sum(r["F1-Score"] * r["Support"] for r in report_rows[:2]) / total_n), 4),
+        "Support": len(yt),
     })
-    return pd.DataFrame(rows)
+    return pd.DataFrame(report_rows)
 
 @st.cache_resource
-def load_all_saved_models():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    return {k: pickle.load(open(os.path.join(base_dir, v), "rb")) for k, v in MODEL_REGISTRY.items()}
+def load_serialized_models():
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    return {name: pickle.load(open(os.path.join(root_dir, rel_p), "rb")) for name, rel_p in SRESTH_MODEL_ARTIFACTS.items()}
 
-models_dict = load_all_saved_models()
+loaded_models = load_serialized_models()
 
-# Sidebar: (a) Dataset Upload Option (CSV) & (b) Model Selection Dropdown
-st.sidebar.header("⚙️ Step 6 App Controls")
-uploaded_file = st.sidebar.file_uploader("a. Upload Test Data CSV (20 features + target)", type=["csv"])
+# Sidebar Controls: (a) Dataset Upload Option (CSV) & (b) Model Selection Dropdown
+st.sidebar.header("Evaluation Controls (2026AJ05039)")
+uploaded_csv = st.sidebar.file_uploader("a. Upload Held-Out Test CSV (20 features + target)", type=["csv"])
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-default_test_path = os.path.join(base_dir, "test_data.csv")
-if os.path.exists(default_test_path):
-    st.sidebar.download_button("📥 Download Sample test_data.csv", data=open(default_test_path, "rb").read(), file_name="test_data.csv", mime="text/csv")
+root_dir = os.path.dirname(os.path.abspath(__file__))
+bundled_test_csv = os.path.join(root_dir, "test_data.csv")
+if os.path.exists(bundled_test_csv):
+    st.sidebar.download_button(
+        "Download Bundled test_data.csv (N=200)",
+        data=open(bundled_test_csv, "rb").read(),
+        file_name="test_data.csv",
+        mime="text/csv",
+    )
 
-selected_model_name = st.sidebar.selectbox("b. Select Classification Model", list(MODEL_REGISTRY.keys()), index=3)
+active_model_name = st.sidebar.selectbox("b. Choose Classification Model", list(SRESTH_MODEL_ARTIFACTS.keys()), index=3)
 
-if uploaded_file is not None:
-    df_test = pd.read_csv(uploaded_file)
-    st.info(f"Loaded uploaded test file: `{uploaded_file.name}` ({len(df_test)} instances). Evaluating pre-trained models without retraining.")
+if uploaded_csv is not None:
+    eval_df = pd.read_csv(uploaded_csv)
+    st.info(f"Evaluating uploaded test dataset `{uploaded_csv.name}` ({len(eval_df)} instances) using pre-trained `model/*.pkl` artifacts without retraining.")
 else:
-    df_test = pd.read_csv(default_test_path)
-    st.info(f"Using bundled held-out `test_data.csv` ({len(df_test)} instances, Seed=5039). Upload any test CSV in the sidebar to evaluate dynamically.")
+    eval_df = pd.read_csv(bundled_test_csv)
+    st.info(f"Evaluating bundled held-out `test_data.csv` ({len(eval_df)} instances, Seed=5039). Upload any test CSV in the sidebar to evaluate dynamically.")
 
-if "default" in df_test.columns and "target" in df_test.columns:
-    df_test = df_test.drop(columns=["default"])
+if "default" in eval_df.columns and "target" in eval_df.columns:
+    eval_df = eval_df.drop(columns=["default"])
 
-X_test_df = df_test[REQUIRED_FEATURES]
-y_test_arr = df_test["target"].astype(int).values
+X_eval_df = eval_df[CREDIT_INPUT_ATTRIBUTES]
+y_eval_true = eval_df["target"].astype(int).values
 
-all_eval_rows, model_outputs = [], {}
-for m_name, m_bundle in models_dict.items():
-    y_p, y_s = run_saved_model_inference(m_bundle, X_test_df)
-    m_res = compute_all_metrics(y_test_arr, y_p, y_s)
-    model_outputs[m_name] = {"y_pred": y_p, "y_prob": y_s, "metrics": m_res}
-    all_eval_rows.append({"ML Model Name": m_name, **{k: m_res[k] for k in ["Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"]}})
+benchmark_rows, per_model_results = [], {}
+for m_label, m_bundle in loaded_models.items():
+    preds, probs = evaluate_saved_credit_model(m_bundle, X_eval_df)
+    m_scores = calculate_six_rubric_metrics(y_eval_true, preds, probs)
+    per_model_results[m_label] = {"y_pred": preds, "y_prob": probs, "metrics": m_scores}
+    benchmark_rows.append({"ML Model Name": m_label, **{k: m_scores[k] for k in ["Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"]}})
 
 # (c) Display of Evaluation Metrics for Selected Model
-sel_out = model_outputs[selected_model_name]
-sel_met = sel_out["metrics"]
-st.subheader(f"c. Evaluation Metrics — {selected_model_name}")
-cols = st.columns(6)
-for idx, (label, key) in enumerate([("Accuracy", "Accuracy"), ("AUC Score", "AUC"), ("Precision", "Precision"), ("Recall", "Recall"), ("F1 Score", "F1"), ("MCC Score", "MCC")]):
-    cols[idx].metric(label, f"{sel_met[key]:.4f}")
+chosen_res = per_model_results[active_model_name]
+chosen_met = chosen_res["metrics"]
+st.subheader(f"c. Evaluation Metrics -- {active_model_name}")
+kpi_cols = st.columns(6)
+for idx, (ui_lbl, m_key) in enumerate([
+    ("Accuracy", "Accuracy"), ("AUC Score", "AUC"), ("Precision", "Precision"),
+    ("Recall", "Recall"), ("F1 Score", "F1"), ("MCC Score", "MCC")
+]):
+    kpi_cols[idx].metric(ui_lbl, f"{chosen_met[m_key]:.4f}")
 
-# (d) Confusion Matrix & Classification Report
-st.subheader(f"d. Confusion Matrix & Classification Report — {selected_model_name}")
-col_cm, col_rep = st.columns([1.0, 1.3])
-with col_cm:
-    cm_mat = np.array([[sel_met["TN"], sel_met["FP"]], [sel_met["FN"], sel_met["TP"]]])
-    fig_cm, ax_cm = plt.subplots(figsize=(4.8, 3.6), dpi=130)
-    sns.heatmap(cm_mat, annot=True, fmt="d", cmap="Blues", cbar=False,
-                xticklabels=["Pred 0 (Good)", "Pred 1 (Default)"],
-                yticklabels=["True 0 (Good)", "True 1 (Default)"], ax=ax_cm)
-    ax_cm.set_title(f"Confusion Matrix: {selected_model_name}")
-    st.pyplot(fig_cm)
+# (d) Confusion Matrix & Classification Report + 5-Model Comparison
+tab_cm, tab_bench = st.tabs(["d. Confusion Matrix & Classification Report", "All 5 Models -- Benchmark Comparison on Test Data"])
+with tab_cm:
+    c_left, c_right = st.columns([1.0, 1.35])
+    with c_left:
+        cm_grid = np.array([[chosen_met["TN"], chosen_met["FP"]], [chosen_met["FN"], chosen_met["TP"]]])
+        fig_cm, ax_cm = plt.subplots(figsize=(4.8, 3.6), dpi=130)
+        sns.heatmap(
+            cm_grid, annot=True, fmt="d", cmap="Blues", cbar=False,
+            xticklabels=["Pred 0 (Good)", "Pred 1 (Default)"],
+            yticklabels=["True 0 (Good)", "True 1 (Default)"], ax=ax_cm
+        )
+        ax_cm.set_title(f"Confusion Matrix: {active_model_name}")
+        st.pyplot(fig_cm)
+    with c_right:
+        st.dataframe(generate_class_report_table(y_eval_true, chosen_res["y_pred"]), use_container_width=True, hide_index=True)
 
-with col_rep:
-    st.dataframe(build_classification_report_df(y_test_arr, sel_out["y_pred"]), use_container_width=True, hide_index=True)
-
-st.subheader("🏆 All 5 Models — Comparison Table on Active Test Data")
-st.dataframe(pd.DataFrame(all_eval_rows), use_container_width=True, hide_index=True)
+with tab_bench:
+    st.dataframe(pd.DataFrame(benchmark_rows), use_container_width=True, hide_index=True)
